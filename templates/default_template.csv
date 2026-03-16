@@ -1,0 +1,3 @@
+Customer Name,Email,Phone,Customer Type,Contact First Name,Contact Last Name,Contact Title,Location Name,Subject,Description,Priority,Status,External ID,Address,City,State,Zip
+Acme Laundry,ops@acmelaundry.example,2075551000,Commercial,Jamie,Smith,Facilities Manager,Main Plant,Washer leaking,Top-load washer leaking from drain hose,High,New,WO-1001,123 Main St,Portland,ME,04101
+Harbor Condos,board@harbor.example,2075552000,Residential,Morgan,Lee,Property Manager,Unit 4A,No cool,Refrigerator not cooling properly,Normal,New,WO-1002,44 Ocean Ave,Cape Elizabeth,ME,04107

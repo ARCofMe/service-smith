@@ -32,6 +32,22 @@ Use a named adapter:
 servicesmith vendor_export.xlsx --format vendor_a --dry-run
 ```
 
+Print the expected headers for one adapter:
+
+```bash
+servicesmith --format default --print-headers
+```
+
+## Templates
+
+Sample CSV templates live in [`templates/`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/templates):
+
+- [`default_template.csv`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/templates/default_template.csv)
+- [`vendor_a_template.csv`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/templates/vendor_a_template.csv)
+- [`vendor_b_template.csv`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/templates/vendor_b_template.csv)
+
+Use these as starting points for vendors or internal requesters instead of asking them to guess the schema.
+
 ## Packaging
 
 The project exposes a `servicesmith` console script through `pyproject.toml`, which

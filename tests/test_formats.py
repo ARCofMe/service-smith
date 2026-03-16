@@ -1,4 +1,4 @@
-from service_smith.formats import DEFAULT_ADAPTER, get_adapter, list_adapters
+from service_smith.formats import DEFAULT_ADAPTER, adapter_headers, get_adapter, list_adapters
 
 
 def test_get_adapter_returns_named_adapter():
@@ -21,3 +21,9 @@ def test_get_adapter_rejects_unknown_name():
         assert "Supported formats" in str(exc)
     else:
         raise AssertionError("Expected ValueError for unknown adapter")
+
+
+def test_adapter_headers_match_declared_field_order():
+    headers = adapter_headers("default")
+    assert headers[0] == "Customer Name"
+    assert "External ID" in headers

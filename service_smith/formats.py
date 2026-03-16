@@ -124,3 +124,8 @@ def get_adapter(name: str) -> SpreadsheetAdapter:
 
 def list_adapters() -> list[SpreadsheetAdapter]:
     return [ADAPTERS[name] for name in sorted(ADAPTERS)]
+
+
+def adapter_headers(name: str) -> list[str]:
+    adapter = get_adapter(name)
+    return list(adapter.field_map.values())

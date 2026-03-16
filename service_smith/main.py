@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 
 from service_smith.bluefolder_client import ServiceSmithBlueFolderClient
-from service_smith.formats import ADAPTERS, get_adapter, list_adapters
+from service_smith.formats import ADAPTERS, adapter_headers, get_adapter, list_adapters
 from service_smith.importer import load_rows, preview_rows, validate_rows
 from service_smith.utils.config import load_settings
 from service_smith.utils.logging import configure_logging, get_logger
@@ -21,6 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--fail-fast", action="store_true", help="Stop on the first import failure.")
     parser.add_argument("--format", dest="spreadsheet_format", default="default", choices=sorted(ADAPTERS), help="Named spreadsheet adapter.")
     parser.add_argument("--list-formats", action="store_true", help="List supported spreadsheet adapters and exit.")
+    parser.add_argument("--print-headers", action="store_true", help="Print the expected spreadsheet headers for the selected adapter and exit.")
     return parser
 
 
@@ -37,10 +38,15 @@ def main(argv: list[str] | None = None) -> int:
             logger.info("%s: %s", adapter.name, adapter.description)
         return 0
 
+    adapter = get_adapter(args.spreadsheet_format)
+
+    if args.print_headers:
+        for header in adapter_headers(adapter.name):
+            print(header)
+        return 0
+
     if args.spreadsheet is None:
         parser.error("the following arguments are required: spreadsheet")
-
-    adapter = get_adapter(args.spreadsheet_format)
 
     rows = load_rows(args.spreadsheet, field_map=adapter.field_map)
     logger.info("Loaded %d row(s) from %s using adapter '%s'", len(rows), args.spreadsheet, adapter.name)
