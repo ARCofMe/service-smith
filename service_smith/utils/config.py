@@ -19,6 +19,10 @@ class Settings:
     service_smith_log_level: str
     service_smith_default_sheet: str | None
     service_smith_report_dir: str
+    service_smith_default_customer_type: str
+    service_smith_default_sr_status: str
+    service_smith_default_sr_priority: str | None
+    service_smith_default_contact_title: str | None
 
 
 def load_settings(env_path: str | Path | None = None) -> Settings:
@@ -41,4 +45,8 @@ def load_settings(env_path: str | Path | None = None) -> Settings:
         service_smith_log_level=os.getenv("SERVICE_SMITH_LOG_LEVEL", "INFO"),
         service_smith_default_sheet=os.getenv("SERVICE_SMITH_DEFAULT_SHEET"),
         service_smith_report_dir=os.getenv("SERVICE_SMITH_REPORT_DIR", "reports"),
+        service_smith_default_customer_type=os.getenv("SERVICE_SMITH_DEFAULT_CUSTOMER_TYPE", "Residential"),
+        service_smith_default_sr_status=os.getenv("SERVICE_SMITH_DEFAULT_SR_STATUS", "New"),
+        service_smith_default_sr_priority=os.getenv("SERVICE_SMITH_DEFAULT_SR_PRIORITY"),
+        service_smith_default_contact_title=os.getenv("SERVICE_SMITH_DEFAULT_CONTACT_TITLE"),
     )

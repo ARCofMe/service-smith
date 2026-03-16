@@ -6,28 +6,13 @@ import csv
 from pathlib import Path
 from typing import Iterable
 
-
-DEFAULT_FIELD_MAP = {
-    "customer_name": "Customer Name",
-    "customer_email": "Email",
-    "customer_phone": "Phone",
-    "customer_type": "Customer Type",
-    "subject": "Subject",
-    "description": "Description",
-    "priority": "Priority",
-    "status": "Status",
-    "external_id": "External ID",
-    "address": "Address",
-    "city": "City",
-    "state": "State",
-    "zip": "Zip",
-}
+from service_smith.formats import DEFAULT_ADAPTER
 
 
 def load_rows(spreadsheet_path: str | Path, field_map: dict[str, str] | None = None) -> list[dict[str, str]]:
     """Load rows from a CSV or spreadsheet-like export into canonical field names."""
     path = Path(spreadsheet_path)
-    mapped_fields = field_map or DEFAULT_FIELD_MAP
+    mapped_fields = field_map or DEFAULT_ADAPTER.field_map
 
     if path.suffix.lower() == ".csv":
         with path.open("r", newline="", encoding="utf-8-sig") as handle:
@@ -86,6 +71,10 @@ def validate_rows(rows: Iterable[dict[str, str]]) -> list[dict[str, str]]:
             issues.append({"row": row_number, "level": "error", "message": "Missing customer_name"})
         if not row.get("description") and not row.get("subject"):
             issues.append({"row": row_number, "level": "error", "message": "Missing subject/description"})
+        if not row.get("address"):
+            issues.append({"row": row_number, "level": "warning", "message": "Missing address"})
+        if not row.get("city") or not row.get("state"):
+            issues.append({"row": row_number, "level": "warning", "message": "Missing city/state"})
 
         external_id = row.get("external_id", "")
         if external_id:

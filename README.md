@@ -20,6 +20,18 @@ pip install -e .
 servicesmith path/to/service_requests.csv
 ```
 
+List supported spreadsheet adapters:
+
+```bash
+servicesmith --list-formats placeholder.csv
+```
+
+Use a named adapter:
+
+```bash
+servicesmith vendor_export.xlsx --format vendor_a --dry-run
+```
+
 ## Packaging
 
 The project exposes a `servicesmith` console script through `pyproject.toml`, which

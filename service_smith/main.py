@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 
 from service_smith.bluefolder_client import ServiceSmithBlueFolderClient
+from service_smith.formats import ADAPTERS, get_adapter, list_adapters
 from service_smith.importer import load_rows, preview_rows, validate_rows
 from service_smith.utils.config import load_settings
 from service_smith.utils.logging import configure_logging, get_logger
@@ -14,10 +15,12 @@ from service_smith.utils.reporting import write_report
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Import service requests from a spreadsheet into BlueFolder.")
-    parser.add_argument("spreadsheet", type=Path, help="Path to the source spreadsheet.")
+    parser.add_argument("spreadsheet", type=Path, nargs="?", help="Path to the source spreadsheet.")
     parser.add_argument("--dry-run", action="store_true", help="Parse and preview rows without creating anything.")
     parser.add_argument("--report-dir", type=Path, default=None, help="Directory for JSON/CSV import reports.")
     parser.add_argument("--fail-fast", action="store_true", help="Stop on the first import failure.")
+    parser.add_argument("--format", dest="spreadsheet_format", default="default", choices=sorted(ADAPTERS), help="Named spreadsheet adapter.")
+    parser.add_argument("--list-formats", action="store_true", help="List supported spreadsheet adapters and exit.")
     return parser
 
 
@@ -29,8 +32,18 @@ def main(argv: list[str] | None = None) -> int:
     configure_logging(settings)
     logger = get_logger(__name__)
 
-    rows = load_rows(args.spreadsheet)
-    logger.info("Loaded %d row(s) from %s", len(rows), args.spreadsheet)
+    if args.list_formats:
+        for adapter in list_adapters():
+            logger.info("%s: %s", adapter.name, adapter.description)
+        return 0
+
+    if args.spreadsheet is None:
+        parser.error("the following arguments are required: spreadsheet")
+
+    adapter = get_adapter(args.spreadsheet_format)
+
+    rows = load_rows(args.spreadsheet, field_map=adapter.field_map)
+    logger.info("Loaded %d row(s) from %s using adapter '%s'", len(rows), args.spreadsheet, adapter.name)
     issues = validate_rows(rows)
     for issue in issues:
         log_fn = logger.error if issue["level"] == "error" else logger.warning
@@ -40,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     report_dir = args.report_dir or Path(settings.service_smith_report_dir)
-    client = ServiceSmithBlueFolderClient()
+    client = ServiceSmithBlueFolderClient(settings)
 
     if args.dry_run:
         plans = [client.plan_import(row) for row in rows]
