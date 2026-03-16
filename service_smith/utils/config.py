@@ -6,7 +6,12 @@ from dataclasses import dataclass
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - fallback for lean test environments
+
+    def load_dotenv(*args, **kwargs):
+        return False
 
 
 @dataclass(slots=True)
