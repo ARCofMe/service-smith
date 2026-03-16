@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "service-smith"
+version = "0.1.0"
+description = "Import service requests from spreadsheets into BlueFolder."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "python-dotenv>=1.0,<2",
+    "openpyxl>=3.1,<4",
+]
+
+[project.scripts]
+servicesmith = "service_smith.main:main"
+
+[tool.setuptools.packages.find]
+include = ["service_smith*"]
