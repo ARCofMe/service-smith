@@ -36,6 +36,7 @@ def _client_with_stubs() -> ServiceSmithBlueFolderClient:
     svc = ServiceSmithBlueFolderClient.__new__(ServiceSmithBlueFolderClient)
     svc.settings = _settings()
     svc._customer_cache = None
+    svc._service_request_cache = None
     svc.client = SimpleNamespace(
         customers=SimpleNamespace(
             list=lambda filters: _customer_list_xml(),
@@ -50,6 +51,7 @@ def _client_with_stubs() -> ServiceSmithBlueFolderClient:
             add=lambda customer_id, **fields: _id_response("id", "789"),
         ),
         service_requests=SimpleNamespace(
+            list_for_range=lambda start, end: [],
             add=lambda **fields: _id_response("serviceRequestId", "555"),
         ),
     )
@@ -127,3 +129,42 @@ def test_ensure_customer_and_import_creates_missing_records():
     assert result.created_location is True
     assert result.created_contact is True
     assert result.status == "imported"
+
+
+def test_plan_import_marks_existing_service_request_duplicate():
+    svc = _client_with_stubs()
+    svc.client.service_requests.list_for_range = lambda start, end: [
+        {"id": "321", "externalId": "WO-EXISTS"}
+    ]
+    row = {
+        "source_row_number": "4",
+        "customer_name": "Acme Service",
+        "customer_email": "ops@example.com",
+        "external_id": "WO-EXISTS",
+        "description": "No heat",
+    }
+
+    plan = svc.plan_import(row)
+
+    assert plan.service_request_action == "skip_existing"
+    assert plan.existing_service_request_id == "321"
+
+
+def test_ensure_customer_and_import_skips_existing_service_request():
+    svc = _client_with_stubs()
+    svc.client.service_requests.list_for_range = lambda start, end: [
+        {"id": "321", "externalId": "WO-EXISTS"}
+    ]
+    row = {
+        "source_row_number": "5",
+        "customer_name": "Acme Service",
+        "customer_email": "ops@example.com",
+        "external_id": "WO-EXISTS",
+        "description": "No heat",
+    }
+
+    result = svc.ensure_customer_and_import(row)
+
+    assert result.status == "skipped_duplicate"
+    assert result.existing_service_request_id == "321"
+    assert result.service_request_id is None

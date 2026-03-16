@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 import xml.etree.ElementTree as ET
+from datetime import date, timedelta
 
 from service_smith.utils.config import Settings
 
@@ -16,6 +17,7 @@ class BlueFolderImportResult:
     customer_location_id: str | None
     customer_contact_id: str | None
     service_request_id: str | None
+    existing_service_request_id: str | None = None
     created_customer: bool = False
     created_location: bool = False
     created_contact: bool = False
@@ -33,6 +35,7 @@ class BlueFolderImportPlan:
     existing_customer_id: str | None = None
     existing_location_id: str | None = None
     existing_contact_id: str | None = None
+    existing_service_request_id: str | None = None
     notes: list[str] | None = None
 
 
@@ -50,6 +53,7 @@ class ServiceSmithBlueFolderClient:
         self.settings = settings
         self.client = BlueFolderClient()
         self._customer_cache: list[dict[str, str]] | None = None
+        self._service_request_cache: dict[str, str] | None = None
 
     def find_customer(self, row: dict[str, Any]) -> dict[str, Any] | None:
         """Find a customer by email, phone, or exact name."""
@@ -104,6 +108,20 @@ class ServiceSmithBlueFolderClient:
 
     def ensure_customer_and_import(self, row: dict[str, Any]) -> BlueFolderImportResult:
         notes: list[str] = []
+        existing_service_request_id = self.find_service_request_by_external_id(row.get("external_id"))
+        if existing_service_request_id:
+            notes.append("service request already exists in BlueFolder")
+            return BlueFolderImportResult(
+                row_number=row.get("source_row_number"),
+                customer_id=None,
+                customer_location_id=None,
+                customer_contact_id=None,
+                service_request_id=None,
+                existing_service_request_id=existing_service_request_id,
+                status="skipped_duplicate",
+                notes=notes,
+            )
+
         customer = self.find_customer(row)
         created_customer = False
         created_location = False
@@ -138,6 +156,7 @@ class ServiceSmithBlueFolderClient:
             customer_location_id=location_id,
             customer_contact_id=contact_id,
             service_request_id=service_request_id,
+            existing_service_request_id=existing_service_request_id,
             created_customer=created_customer,
             created_location=created_location,
             created_contact=created_contact,
@@ -150,7 +169,10 @@ class ServiceSmithBlueFolderClient:
         customer_id = str(customer.get("id") or customer.get("customerId")) if customer else None
         location = self.find_location(customer_id, row) if customer_id else None
         contact = self.find_contact(customer_id, row) if customer_id else None
+        existing_service_request_id = self.find_service_request_by_external_id(row.get("external_id"))
         notes: list[str] = []
+        if existing_service_request_id:
+            notes.append("service request already exists in BlueFolder")
         if customer:
             notes.append("customer already exists in BlueFolder")
         elif row.get("customer_name"):
@@ -172,10 +194,11 @@ class ServiceSmithBlueFolderClient:
             customer_action="use_existing" if customer else "create_customer",
             location_action="use_existing" if location else "create_location",
             contact_action="use_existing" if contact else "create_contact",
-            service_request_action="create_service_request",
+            service_request_action="skip_existing" if existing_service_request_id else "create_service_request",
             existing_customer_id=customer_id,
             existing_location_id=str(location.get("id")) if location else None,
             existing_contact_id=str(contact.get("id")) if contact else None,
+            existing_service_request_id=existing_service_request_id,
             notes=notes,
         )
 
@@ -285,6 +308,38 @@ class ServiceSmithBlueFolderClient:
                 )
         self._customer_cache = customers
         return customers
+
+    def find_service_request_by_external_id(self, external_id: str | None) -> str | None:
+        if not external_id:
+            return None
+        cache = self._list_service_requests_by_external_id()
+        return cache.get(str(external_id).strip())
+
+    def _list_service_requests_by_external_id(self) -> dict[str, str]:
+        if self._service_request_cache is not None:
+            return self._service_request_cache
+
+        end = date.today()
+        start = end - timedelta(days=365)
+        try:
+            service_requests = self.client.service_requests.list_for_range(
+                f"{start:%Y.%m.%d} 12:00 AM",
+                f"{end:%Y.%m.%d} 11:59 PM",
+            )
+        except Exception:
+            self._service_request_cache = {}
+            return self._service_request_cache
+
+        cache: dict[str, str] = {}
+        for item in service_requests:
+            if not isinstance(item, dict):
+                continue
+            external_id = item.get("externalId") or item.get("external_id")
+            sr_id = item.get("id")
+            if external_id and sr_id:
+                cache[str(external_id).strip()] = str(sr_id)
+        self._service_request_cache = cache
+        return cache
 
     @staticmethod
     def _extract_id(response: Any, candidate_tags: tuple[str, ...]) -> str | None:
