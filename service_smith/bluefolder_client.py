@@ -39,6 +39,20 @@ class BlueFolderImportPlan:
     notes: list[str] | None = None
 
 
+@dataclass(slots=True)
+class BlueFolderPayloadPreview:
+    row_number: str | None
+    customer_payload: dict[str, Any] | None
+    location_payload: dict[str, Any] | None
+    contact_payload: dict[str, Any] | None
+    service_request_payload: dict[str, Any] | None
+    existing_customer_id: str | None = None
+    existing_location_id: str | None = None
+    existing_contact_id: str | None = None
+    existing_service_request_id: str | None = None
+    notes: list[str] | None = None
+
+
 class ServiceSmithBlueFolderClient:
     """Thin adapter over the shared bluefolder-api package."""
 
@@ -72,12 +86,7 @@ class ServiceSmithBlueFolderClient:
 
     def create_customer(self, row: dict[str, Any]) -> str | None:
         """Create a customer record."""
-        payload = {
-            "customerName": row.get("customer_name"),
-            "customerType": row.get("customer_type") or self.settings.service_smith_default_customer_type,
-            "email": row.get("customer_email"),
-            "phone": row.get("customer_phone"),
-        }
+        payload = self.build_customer_payload(row)
         response = self.client.customers.add(**{k: v for k, v in payload.items() if v})
         return self._extract_id(response, ("customerId", "id"))
 
@@ -89,20 +98,12 @@ class ServiceSmithBlueFolderClient:
         customer_contact_id: str | None,
     ) -> str | None:
         """Submit one service request to BlueFolder."""
-        payload = {
-            "customerId": customer_id,
-            "customerLocationId": customer_location_id,
-            "customerContactId": customer_contact_id,
-            "subject": row.get("subject"),
-            "description": row.get("description") or row.get("subject"),
-            "priority": row.get("priority") or self.settings.service_smith_default_sr_priority,
-            "status": row.get("status") or self.settings.service_smith_default_sr_status,
-            "externalId": row.get("external_id"),
-            "customerLocationStreetAddress": row.get("address"),
-            "customerLocationCity": row.get("city"),
-            "customerLocationState": row.get("state"),
-            "customerLocationPostalCode": row.get("zip"),
-        }
+        payload = self.build_service_request_payload(
+            row,
+            customer_id=customer_id,
+            customer_location_id=customer_location_id,
+            customer_contact_id=customer_contact_id,
+        )
         response = self.client.service_requests.add(**{k: v for k, v in payload.items() if v})
         return self._extract_id(response, ("serviceRequestId", "id"))
 
@@ -202,6 +203,46 @@ class ServiceSmithBlueFolderClient:
             notes=notes,
         )
 
+    def preview_payloads(self, row: dict[str, Any]) -> BlueFolderPayloadPreview:
+        customer = self.find_customer(row)
+        customer_id = str(customer.get("id") or customer.get("customerId")) if customer else None
+        location = self.find_location(customer_id, row) if customer_id else None
+        contact = self.find_contact(customer_id, row) if customer_id else None
+        existing_service_request_id = self.find_service_request_by_external_id(row.get("external_id"))
+
+        notes: list[str] = []
+        if customer:
+            notes.append("customer already exists")
+        if location:
+            notes.append("location already exists")
+        if contact:
+            notes.append("contact already exists")
+        if existing_service_request_id:
+            notes.append("service request already exists")
+
+        customer_payload = None if customer else self.build_customer_payload(row)
+        location_payload = None if location or not customer_id and not row.get("customer_name") else self.build_location_payload(row)
+        contact_payload = None if contact else self.build_contact_payload(row, location_id=str(location.get("id")) if location else None)
+        service_request_payload = self.build_service_request_payload(
+            row,
+            customer_id=customer_id or "<new_customer_id>",
+            customer_location_id=str(location.get("id")) if location else "<new_location_id>",
+            customer_contact_id=str(contact.get("id")) if contact else "<new_contact_id>",
+        )
+
+        return BlueFolderPayloadPreview(
+            row_number=row.get("source_row_number"),
+            customer_payload=customer_payload,
+            location_payload=location_payload,
+            contact_payload=contact_payload,
+            service_request_payload=service_request_payload,
+            existing_customer_id=customer_id,
+            existing_location_id=str(location.get("id")) if location else None,
+            existing_contact_id=str(contact.get("id")) if contact else None,
+            existing_service_request_id=existing_service_request_id,
+            notes=notes,
+        )
+
     def ensure_location(self, customer_id: str | None, row: dict[str, Any]) -> str | None:
         if not customer_id:
             return None
@@ -212,11 +253,7 @@ class ServiceSmithBlueFolderClient:
             return None
         response = self.client.customer_locations.add(
             int(customer_id),
-            locationName=row.get("location_name") or row.get("customer_name"),
-            addressStreet=row.get("address"),
-            addressCity=row.get("city"),
-            addressState=row.get("state"),
-            addressPostalCode=row.get("zip"),
+            **self.build_location_payload(row),
         )
         return self._extract_id(response, ("customerLocationId", "id"))
 
@@ -232,12 +269,7 @@ class ServiceSmithBlueFolderClient:
             return None
         response = self.client.customer_contacts.add(
             int(customer_id),
-            firstName=first_name,
-            lastName=last_name,
-            title=row.get("contact_title") or self.settings.service_smith_default_contact_title,
-            email=row.get("customer_email"),
-            phone=row.get("customer_phone"),
-            customerLocationId=location_id,
+            **self.build_contact_payload(row, location_id=location_id),
         )
         return self._extract_id(response, ("id", "customerContactId"))
 
@@ -340,6 +372,60 @@ class ServiceSmithBlueFolderClient:
                 cache[str(external_id).strip()] = str(sr_id)
         self._service_request_cache = cache
         return cache
+
+    def build_customer_payload(self, row: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "customerName": row.get("customer_name"),
+            "customerType": row.get("customer_type") or self.settings.service_smith_default_customer_type,
+            "email": row.get("customer_email"),
+            "phone": row.get("customer_phone"),
+        }
+
+    def build_location_payload(self, row: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "locationName": row.get("location_name") or row.get("customer_name"),
+            "addressStreet": row.get("address"),
+            "addressCity": row.get("city"),
+            "addressState": row.get("state"),
+            "addressPostalCode": row.get("zip"),
+        }
+
+    def build_contact_payload(self, row: dict[str, Any], location_id: str | None) -> dict[str, Any]:
+        first_name = row.get("contact_first_name") or row.get("customer_name", "").split(" ", 1)[0]
+        last_name = row.get("contact_last_name") or (
+            row.get("customer_name", "").split(" ", 1)[1] if " " in row.get("customer_name", "") else ""
+        )
+        return {
+            "firstName": first_name,
+            "lastName": last_name,
+            "title": row.get("contact_title") or self.settings.service_smith_default_contact_title,
+            "email": row.get("customer_email"),
+            "phone": row.get("customer_phone"),
+            "customerLocationId": location_id,
+        }
+
+    def build_service_request_payload(
+        self,
+        row: dict[str, Any],
+        *,
+        customer_id: str | None,
+        customer_location_id: str | None,
+        customer_contact_id: str | None,
+    ) -> dict[str, Any]:
+        return {
+            "customerId": customer_id,
+            "customerLocationId": customer_location_id,
+            "customerContactId": customer_contact_id,
+            "subject": row.get("subject"),
+            "description": row.get("description") or row.get("subject"),
+            "priority": row.get("priority") or self.settings.service_smith_default_sr_priority,
+            "status": row.get("status") or self.settings.service_smith_default_sr_status,
+            "externalId": row.get("external_id"),
+            "customerLocationStreetAddress": row.get("address"),
+            "customerLocationCity": row.get("city"),
+            "customerLocationState": row.get("state"),
+            "customerLocationPostalCode": row.get("zip"),
+        }
 
     @staticmethod
     def _extract_id(response: Any, candidate_tags: tuple[str, ...]) -> str | None:

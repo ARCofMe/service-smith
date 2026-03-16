@@ -24,6 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Import service requests from a spreadsheet into BlueFolder.")
     parser.add_argument("spreadsheet", type=Path, nargs="?", help="Path to the source spreadsheet.")
     parser.add_argument("--dry-run", action="store_true", help="Parse and preview rows without creating anything.")
+    parser.add_argument("--payload-preview", action="store_true", help="In dry-run mode, write the exact BlueFolder payload previews instead of action summaries.")
     parser.add_argument("--report-dir", type=Path, default=None, help="Directory for JSON/CSV import reports.")
     parser.add_argument("--fail-fast", action="store_true", help="Stop on the first import failure.")
     parser.add_argument("--format", dest="spreadsheet_format", default="default", choices=sorted(ADAPTERS), help="Named spreadsheet adapter.")
@@ -75,10 +76,11 @@ def main(argv: list[str] | None = None) -> int:
     client = ServiceSmithBlueFolderClient(settings)
 
     if args.dry_run:
-        plans = [client.plan_import(row) for row in rows]
+        plans = [client.preview_payloads(row) for row in rows] if args.payload_preview else [client.plan_import(row) for row in rows]
         for idx, row in enumerate(preview_rows(rows), start=1):
             logger.info("Preview row %d: %s", idx, row)
-        json_path, csv_path = write_report(report_dir, "dry_run", plans)
+        stem = "payload_preview" if args.payload_preview else "dry_run"
+        json_path, csv_path = write_report(report_dir, stem, plans)
         logger.info("Dry-run report written to %s and %s", json_path, csv_path)
         return 0
 

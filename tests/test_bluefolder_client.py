@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 import xml.etree.ElementTree as ET
 
-from service_smith.bluefolder_client import ServiceSmithBlueFolderClient
+from service_smith.bluefolder_client import BlueFolderPayloadPreview, ServiceSmithBlueFolderClient
 from service_smith.utils.config import Settings
 
 
@@ -168,3 +168,30 @@ def test_ensure_customer_and_import_skips_existing_service_request():
     assert result.status == "skipped_duplicate"
     assert result.existing_service_request_id == "321"
     assert result.service_request_id is None
+
+
+def test_preview_payloads_returns_sr_centered_bluefolder_payloads():
+    svc = _client_with_stubs()
+    row = {
+        "source_row_number": "6",
+        "customer_name": "New Customer",
+        "customer_email": "new@example.com",
+        "customer_phone": "2075559999",
+        "contact_first_name": "Jane",
+        "contact_last_name": "Smith",
+        "address": "55 River Rd",
+        "city": "Augusta",
+        "state": "ME",
+        "zip": "04330",
+        "description": "Leaking washer",
+        "subject": "Washer leak",
+        "external_id": "WO-2000",
+    }
+
+    preview = svc.preview_payloads(row)
+
+    assert isinstance(preview, BlueFolderPayloadPreview)
+    assert preview.customer_payload["customerName"] == "New Customer"
+    assert preview.location_payload["addressStreet"] == "55 River Rd"
+    assert preview.contact_payload["email"] == "new@example.com"
+    assert preview.service_request_payload["externalId"] == "WO-2000"

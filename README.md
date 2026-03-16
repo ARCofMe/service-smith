@@ -32,6 +32,12 @@ Use a named adapter:
 servicesmith vendor_export.xlsx --format vendor_a --dry-run
 ```
 
+Write exact BlueFolder payload previews during a dry run:
+
+```bash
+servicesmith vendor_export.xlsx --format vendor_a --dry-run --payload-preview
+```
+
 Layer a one-off JSON field-map override on top of an adapter:
 
 ```bash
@@ -67,6 +73,11 @@ For one-off vendor exports, you can provide a JSON file that maps canonical fiel
 ```
 
 This override is layered on top of the selected adapter instead of replacing it wholesale.
+
+## Dry Run Modes
+
+- `--dry-run`: writes action-oriented plans such as create/match/skip decisions
+- `--dry-run --payload-preview`: writes the exact customer, location, contact, and service request payloads that ServiceSmith would submit to BlueFolder
 
 ## Packaging
 
