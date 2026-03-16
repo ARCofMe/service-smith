@@ -41,7 +41,7 @@ servicesmith vendor_export.xlsx --format vendor_a --dry-run --payload-preview
 Layer a one-off JSON field-map override on top of an adapter:
 
 ```bash
-servicesmith vendor_export.xlsx --format vendor_a --field-map custom_map.json --dry-run
+servicesmith vendor_export.xlsx --format vendor_a --field-map examples/custom_map.json --dry-run
 ```
 
 Print the expected headers for one adapter:
@@ -59,6 +59,11 @@ Sample CSV templates live in [`templates/`](/home/ner0tic/Documents/Projects/ARC
 - [`vendor_b_template.csv`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/templates/vendor_b_template.csv)
 
 Use these as starting points for vendors or internal requesters instead of asking them to guess the schema.
+
+## Examples And Docs
+
+- example field-map override: [`examples/custom_map.json`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/examples/custom_map.json)
+- operator workflows: [`docs/workflows.md`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/docs/workflows.md)
 
 ## Field Map Overrides
 

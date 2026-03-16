@@ -1,0 +1,12 @@
+{
+  "customer_name": "Client",
+  "customer_email": "Email Address",
+  "customer_phone": "Main Phone",
+  "subject": "Issue Summary",
+  "description": "Problem Details",
+  "external_id": "Ticket Number",
+  "address": "Service Address",
+  "city": "Service City",
+  "state": "Service State",
+  "zip": "Service Zip"
+}
