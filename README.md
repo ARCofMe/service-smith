@@ -32,6 +32,12 @@ Use a named adapter:
 servicesmith vendor_export.xlsx --format vendor_a --dry-run
 ```
 
+Layer a one-off JSON field-map override on top of an adapter:
+
+```bash
+servicesmith vendor_export.xlsx --format vendor_a --field-map custom_map.json --dry-run
+```
+
 Print the expected headers for one adapter:
 
 ```bash
@@ -47,6 +53,20 @@ Sample CSV templates live in [`templates/`](/home/ner0tic/Documents/Projects/ARC
 - [`vendor_b_template.csv`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/templates/vendor_b_template.csv)
 
 Use these as starting points for vendors or internal requesters instead of asking them to guess the schema.
+
+## Field Map Overrides
+
+For one-off vendor exports, you can provide a JSON file that maps canonical field names to source headers:
+
+```json
+{
+  "customer_name": "Client",
+  "subject": "Issue Summary",
+  "address": "Service Address"
+}
+```
+
+This override is layered on top of the selected adapter instead of replacing it wholesale.
 
 ## Packaging
 

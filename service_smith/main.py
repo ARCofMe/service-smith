@@ -6,7 +6,14 @@ import argparse
 from pathlib import Path
 
 from service_smith.bluefolder_client import ServiceSmithBlueFolderClient
-from service_smith.formats import ADAPTERS, adapter_headers, get_adapter, list_adapters
+from service_smith.formats import (
+    ADAPTERS,
+    adapter_headers,
+    get_adapter,
+    list_adapters,
+    load_field_map_override,
+    merge_field_maps,
+)
 from service_smith.importer import load_rows, preview_rows, validate_rows
 from service_smith.utils.config import load_settings
 from service_smith.utils.logging import configure_logging, get_logger
@@ -20,6 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--report-dir", type=Path, default=None, help="Directory for JSON/CSV import reports.")
     parser.add_argument("--fail-fast", action="store_true", help="Stop on the first import failure.")
     parser.add_argument("--format", dest="spreadsheet_format", default="default", choices=sorted(ADAPTERS), help="Named spreadsheet adapter.")
+    parser.add_argument("--field-map", type=Path, default=None, help="Optional JSON override mapping canonical names to source headers.")
     parser.add_argument("--list-formats", action="store_true", help="List supported spreadsheet adapters and exit.")
     parser.add_argument("--print-headers", action="store_true", help="Print the expected spreadsheet headers for the selected adapter and exit.")
     return parser
@@ -48,7 +56,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.spreadsheet is None:
         parser.error("the following arguments are required: spreadsheet")
 
-    rows = load_rows(args.spreadsheet, field_map=adapter.field_map)
+    field_map = dict(adapter.field_map)
+    if args.field_map:
+        field_map = merge_field_maps(field_map, load_field_map_override(args.field_map))
+        logger.info("Applied field-map override from %s", args.field_map)
+
+    rows = load_rows(args.spreadsheet, field_map=field_map)
     logger.info("Loaded %d row(s) from %s using adapter '%s'", len(rows), args.spreadsheet, adapter.name)
     issues = validate_rows(rows)
     for issue in issues:

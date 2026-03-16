@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+from pathlib import Path
 
 
 CANONICAL_FIELDS = (
@@ -129,3 +131,26 @@ def list_adapters() -> list[SpreadsheetAdapter]:
 def adapter_headers(name: str) -> list[str]:
     adapter = get_adapter(name)
     return list(adapter.field_map.values())
+
+
+def load_field_map_override(path: str | Path) -> dict[str, str]:
+    override_path = Path(path)
+    data = json.loads(override_path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("Field map override must be a JSON object of canonical_name -> source_header.")
+
+    normalized: dict[str, str] = {}
+    for key, value in data.items():
+        if key not in CANONICAL_FIELDS:
+            supported = ", ".join(CANONICAL_FIELDS)
+            raise ValueError(f"Unknown canonical field '{key}'. Supported fields: {supported}")
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"Field map override for '{key}' must be a non-empty string.")
+        normalized[key] = value.strip()
+    return normalized
+
+
+def merge_field_maps(base: dict[str, str], override: dict[str, str]) -> dict[str, str]:
+    merged = dict(base)
+    merged.update(override)
+    return merged
