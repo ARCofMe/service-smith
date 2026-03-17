@@ -170,6 +170,67 @@ def test_ensure_customer_and_import_skips_existing_service_request():
     assert result.service_request_id is None
 
 
+def test_plan_import_marks_duplicate_conflict_when_mode_is_error():
+    svc = _client_with_stubs()
+    svc.client.service_requests.list_for_range = lambda start, end: [
+        {"id": "321", "externalId": "WO-EXISTS"}
+    ]
+    row = {
+        "source_row_number": "7",
+        "customer_name": "Acme Service",
+        "customer_email": "ops@example.com",
+        "external_id": "WO-EXISTS",
+        "description": "No heat",
+    }
+
+    plan = svc.plan_import(row, duplicate_mode="error")
+
+    assert plan.service_request_action == "error_duplicate"
+
+
+def test_ensure_customer_and_import_errors_duplicate_when_mode_is_error():
+    svc = _client_with_stubs()
+    svc.client.service_requests.list_for_range = lambda start, end: [
+        {"id": "321", "externalId": "WO-EXISTS"}
+    ]
+    row = {
+        "source_row_number": "8",
+        "customer_name": "Acme Service",
+        "customer_email": "ops@example.com",
+        "external_id": "WO-EXISTS",
+        "description": "No heat",
+    }
+
+    result = svc.ensure_customer_and_import(row, duplicate_mode="error")
+
+    assert result.status == "duplicate_conflict"
+    assert result.service_request_id is None
+
+
+def test_ensure_customer_and_import_allows_duplicate_when_mode_is_allow():
+    svc = _client_with_stubs()
+    svc.client.service_requests.list_for_range = lambda start, end: [
+        {"id": "321", "externalId": "WO-EXISTS"}
+    ]
+    row = {
+        "source_row_number": "9",
+        "customer_name": "Acme Service",
+        "customer_email": "ops@example.com",
+        "external_id": "WO-EXISTS",
+        "description": "No heat",
+        "address": "123 Main St",
+        "city": "Portland",
+        "state": "ME",
+        "zip": "04101",
+    }
+
+    result = svc.ensure_customer_and_import(row, duplicate_mode="allow")
+
+    assert result.status == "imported"
+    assert result.existing_service_request_id == "321"
+    assert result.service_request_id == "555"
+
+
 def test_preview_payloads_returns_sr_centered_bluefolder_payloads():
     svc = _client_with_stubs()
     row = {
