@@ -64,6 +64,7 @@ Use these as starting points for vendors or internal requesters instead of askin
 
 - example field-map override: [`examples/custom_map.json`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/examples/custom_map.json)
 - operator workflows: [`docs/workflows.md`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/docs/workflows.md)
+- helper script: [`scripts/run_import_workflow.sh`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/scripts/run_import_workflow.sh)
 
 ## Field Map Overrides
 
