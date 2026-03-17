@@ -107,21 +107,35 @@ class ServiceSmithBlueFolderClient:
         response = self.client.service_requests.add(**{k: v for k, v in payload.items() if v})
         return self._extract_id(response, ("serviceRequestId", "id"))
 
-    def ensure_customer_and_import(self, row: dict[str, Any]) -> BlueFolderImportResult:
+    def ensure_customer_and_import(self, row: dict[str, Any], duplicate_mode: str = "skip") -> BlueFolderImportResult:
         notes: list[str] = []
         existing_service_request_id = self.find_service_request_by_external_id(row.get("external_id"))
         if existing_service_request_id:
             notes.append("service request already exists in BlueFolder")
-            return BlueFolderImportResult(
-                row_number=row.get("source_row_number"),
-                customer_id=None,
-                customer_location_id=None,
-                customer_contact_id=None,
-                service_request_id=None,
-                existing_service_request_id=existing_service_request_id,
-                status="skipped_duplicate",
-                notes=notes,
-            )
+            if duplicate_mode == "allow":
+                notes.append("duplicate mode allows creating another service request")
+            elif duplicate_mode == "error":
+                return BlueFolderImportResult(
+                    row_number=row.get("source_row_number"),
+                    customer_id=None,
+                    customer_location_id=None,
+                    customer_contact_id=None,
+                    service_request_id=None,
+                    existing_service_request_id=existing_service_request_id,
+                    status="duplicate_conflict",
+                    notes=notes,
+                )
+            else:
+                return BlueFolderImportResult(
+                    row_number=row.get("source_row_number"),
+                    customer_id=None,
+                    customer_location_id=None,
+                    customer_contact_id=None,
+                    service_request_id=None,
+                    existing_service_request_id=existing_service_request_id,
+                    status="skipped_duplicate",
+                    notes=notes,
+                )
 
         customer = self.find_customer(row)
         created_customer = False
@@ -165,7 +179,7 @@ class ServiceSmithBlueFolderClient:
             notes=notes,
         )
 
-    def plan_import(self, row: dict[str, Any]) -> BlueFolderImportPlan:
+    def plan_import(self, row: dict[str, Any], duplicate_mode: str = "skip") -> BlueFolderImportPlan:
         customer = self.find_customer(row)
         customer_id = str(customer.get("id") or customer.get("customerId")) if customer else None
         location = self.find_location(customer_id, row) if customer_id else None
@@ -190,12 +204,19 @@ class ServiceSmithBlueFolderClient:
             notes.append("contact would be created")
         if row.get("external_id"):
             notes.append(f"external_id={row['external_id']}")
+        if existing_service_request_id and duplicate_mode == "allow":
+            notes.append("duplicate mode allows create despite existing service request")
         return BlueFolderImportPlan(
             row_number=row.get("source_row_number"),
             customer_action="use_existing" if customer else "create_customer",
             location_action="use_existing" if location else "create_location",
             contact_action="use_existing" if contact else "create_contact",
-            service_request_action="skip_existing" if existing_service_request_id else "create_service_request",
+            service_request_action=(
+                "create_service_request"
+                if not existing_service_request_id or duplicate_mode == "allow"
+                else "error_duplicate" if duplicate_mode == "error"
+                else "skip_existing"
+            ),
             existing_customer_id=customer_id,
             existing_location_id=str(location.get("id")) if location else None,
             existing_contact_id=str(contact.get("id")) if contact else None,
@@ -203,7 +224,7 @@ class ServiceSmithBlueFolderClient:
             notes=notes,
         )
 
-    def preview_payloads(self, row: dict[str, Any]) -> BlueFolderPayloadPreview:
+    def preview_payloads(self, row: dict[str, Any], duplicate_mode: str = "skip") -> BlueFolderPayloadPreview:
         customer = self.find_customer(row)
         customer_id = str(customer.get("id") or customer.get("customerId")) if customer else None
         location = self.find_location(customer_id, row) if customer_id else None
@@ -219,6 +240,10 @@ class ServiceSmithBlueFolderClient:
             notes.append("contact already exists")
         if existing_service_request_id:
             notes.append("service request already exists")
+            if duplicate_mode == "allow":
+                notes.append("duplicate mode allows create despite existing service request")
+            elif duplicate_mode == "error":
+                notes.append("duplicate mode would block import")
 
         customer_payload = None if customer else self.build_customer_payload(row)
         location_payload = None if location or not customer_id and not row.get("customer_name") else self.build_location_payload(row)

@@ -28,6 +28,22 @@ def write_report(report_dir: str | Path, stem: str, rows: Iterable[Any]) -> tupl
     return json_path, csv_path
 
 
+def summarize_rows(rows: Iterable[Any], *, status_field: str = "status", issue_level_field: str = "level") -> dict[str, int]:
+    summary: dict[str, int] = {"total": 0}
+    for item in rows:
+        normalized = _normalize(item)
+        summary["total"] += 1
+        status = normalized.get(status_field)
+        if status:
+            key = f"{status_field}:{status}"
+            summary[key] = summary.get(key, 0) + 1
+        level = normalized.get(issue_level_field)
+        if level:
+            key = f"{issue_level_field}:{level}"
+            summary[key] = summary.get(key, 0) + 1
+    return summary
+
+
 def _normalize(item: Any) -> dict[str, Any]:
     if is_dataclass(item):
         data = asdict(item)
