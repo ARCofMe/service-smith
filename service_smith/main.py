@@ -168,7 +168,12 @@ def main(argv: list[str] | None = None) -> int:
             logger.info("Preview row %d: %s", idx, row)
         stem = "payload_preview" if args.payload_preview else "dry_run"
         json_path, csv_path = write_report(report_dir, stem, plans)
-        summary = summarize_rows(plans, status_field="service_request_action", issue_level_field="notes")
+        summary = summarize_rows(
+            plans,
+            status_field="service_request_action",
+            issue_level_field="notes",
+            extra_fields=("customer_action", "location_action", "contact_action"),
+        )
         md_path = write_summary_report(
             report_dir,
             f"{stem}_summary",
@@ -176,6 +181,7 @@ def main(argv: list[str] | None = None) -> int:
             title="ServiceSmith Dry Run Summary",
             status_field="service_request_action",
             issue_level_field="notes",
+            extra_fields=("customer_action", "location_action", "contact_action"),
         )
         logger.info("Dry-run summary: %s", summary)
         logger.info("Dry-run report written to %s, %s, and %s", json_path, csv_path, md_path)
@@ -201,12 +207,16 @@ def main(argv: list[str] | None = None) -> int:
 
     logger.info("Finished importing %d row(s).", imported)
     json_path, csv_path = write_report(report_dir, "import_results", results)
-    summary = summarize_rows(results)
+    summary = summarize_rows(
+        results,
+        extra_fields=("created_customer", "created_location", "created_contact"),
+    )
     md_path = write_summary_report(
         report_dir,
         "import_results_summary",
         results,
         title="ServiceSmith Import Summary",
+        extra_fields=("created_customer", "created_location", "created_contact"),
     )
     logger.info("Import summary: %s", summary)
     logger.info("Import report written to %s, %s, and %s", json_path, csv_path, md_path)

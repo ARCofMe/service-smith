@@ -94,6 +94,7 @@ This override is layered on top of the selected adapter instead of replacing it 
 - `--dry-run`: writes action-oriented plans such as create/match/skip decisions
 - `--dry-run --payload-preview`: writes the exact customer, location, contact, and service request payloads that ServiceSmith would submit to BlueFolder
 - all validation, dry-run, and import runs also write a Markdown summary alongside the JSON/CSV artifacts
+- dry-run summaries now break out planned customer/location/contact actions, and import summaries break out created customer/location/contact counts
 
 ## Import Profiles
 

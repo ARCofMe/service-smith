@@ -36,6 +36,7 @@ def write_summary_report(
     title: str,
     status_field: str = "status",
     issue_level_field: str = "level",
+    extra_fields: Iterable[str] | None = None,
 ) -> Path:
     target_dir = Path(report_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -43,7 +44,12 @@ def write_summary_report(
     summary_path = target_dir / f"{stem}_{timestamp}.md"
 
     normalized = [_normalize(item) for item in rows]
-    summary = summarize_rows(normalized, status_field=status_field, issue_level_field=issue_level_field)
+    summary = summarize_rows(
+        normalized,
+        status_field=status_field,
+        issue_level_field=issue_level_field,
+        extra_fields=extra_fields,
+    )
 
     lines = [f"# {title}", "", "## Summary", ""]
     for key in sorted(summary):
@@ -59,8 +65,15 @@ def write_summary_report(
     return summary_path
 
 
-def summarize_rows(rows: Iterable[Any], *, status_field: str = "status", issue_level_field: str = "level") -> dict[str, int]:
+def summarize_rows(
+    rows: Iterable[Any],
+    *,
+    status_field: str = "status",
+    issue_level_field: str = "level",
+    extra_fields: Iterable[str] | None = None,
+) -> dict[str, int]:
     summary: dict[str, int] = {"total": 0}
+    extra = tuple(extra_fields or ())
     for item in rows:
         normalized = _normalize(item)
         summary["total"] += 1
@@ -71,6 +84,12 @@ def summarize_rows(rows: Iterable[Any], *, status_field: str = "status", issue_l
         level = normalized.get(issue_level_field)
         if level:
             key = f"{issue_level_field}:{level}"
+            summary[key] = summary.get(key, 0) + 1
+        for field in extra:
+            value = normalized.get(field)
+            if value in ("", None):
+                continue
+            key = f"{field}:{value}"
             summary[key] = summary.get(key, 0) + 1
     return summary
 
