@@ -63,6 +63,7 @@ Sample CSV templates live in [`templates/`](/home/ner0tic/Documents/Projects/ARC
 - [`default_template.csv`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/templates/default_template.csv)
 - [`vendor_a_template.csv`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/templates/vendor_a_template.csv)
 - [`vendor_b_template.csv`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/templates/vendor_b_template.csv)
+- template usage guide: [`templates/README.md`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/templates/README.md)
 
 Use these as starting points for vendors or internal requesters instead of asking them to guess the schema.
 
