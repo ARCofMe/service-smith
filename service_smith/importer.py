@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
+import re
 from typing import Iterable
 
 from service_smith.formats import DEFAULT_ADAPTER
@@ -49,7 +50,7 @@ def _map_row(row: dict[str, str], field_map: dict[str, str], row_number: int) ->
         for canonical_name, source_name in field_map.items()
     }
     mapped["source_row_number"] = str(row_number)
-    return mapped
+    return _normalize_row(mapped)
 
 
 def _stringify(value: object) -> str:
@@ -58,6 +59,23 @@ def _stringify(value: object) -> str:
 
 def preview_rows(rows: Iterable[dict[str, str]], limit: int = 5) -> list[dict[str, str]]:
     return list(rows)[:limit]
+
+
+def select_rows(
+    rows: list[dict[str, str]],
+    *,
+    row_start: int | None = None,
+    row_end: int | None = None,
+    limit: int | None = None,
+) -> list[dict[str, str]]:
+    selected = rows
+    if row_start is not None:
+        selected = [row for row in selected if _safe_int(row.get("source_row_number")) >= row_start]
+    if row_end is not None:
+        selected = [row for row in selected if _safe_int(row.get("source_row_number")) <= row_end]
+    if limit is not None and limit >= 0:
+        selected = selected[:limit]
+    return selected
 
 
 def validate_rows(rows: Iterable[dict[str, str]]) -> list[dict[str, str]]:
@@ -75,6 +93,18 @@ def validate_rows(rows: Iterable[dict[str, str]]) -> list[dict[str, str]]:
             issues.append({"row": row_number, "level": "warning", "message": "Missing address"})
         if not row.get("city") or not row.get("state"):
             issues.append({"row": row_number, "level": "warning", "message": "Missing city/state"})
+        email = row.get("customer_email", "")
+        if email and not _looks_like_email(email):
+            issues.append({"row": row_number, "level": "warning", "message": f"Questionable email format: {email}"})
+        phone = row.get("customer_phone", "")
+        if phone and len(_phone_digits(phone)) < 10:
+            issues.append({"row": row_number, "level": "warning", "message": f"Questionable phone format: {phone}"})
+        state = row.get("state", "")
+        if state and len(state) != 2:
+            issues.append({"row": row_number, "level": "warning", "message": f"State should usually be 2 letters: {state}"})
+        zip_code = row.get("zip", "")
+        if zip_code and not re.fullmatch(r"\d{5}(?:-\d{4})?", zip_code):
+            issues.append({"row": row_number, "level": "warning", "message": f"Questionable zip format: {zip_code}"})
 
         external_id = row.get("external_id", "")
         if external_id:
@@ -92,3 +122,35 @@ def validate_rows(rows: Iterable[dict[str, str]]) -> list[dict[str, str]]:
         seen_keys.add(key)
 
     return issues
+
+
+def _normalize_row(row: dict[str, str]) -> dict[str, str]:
+    normalized = dict(row)
+    if normalized.get("customer_email"):
+        normalized["customer_email"] = normalized["customer_email"].strip().lower()
+    if normalized.get("state"):
+        normalized["state"] = normalized["state"].strip().upper()
+    if normalized.get("zip"):
+        normalized["zip"] = normalized["zip"].strip()
+    if normalized.get("customer_phone"):
+        digits = _phone_digits(normalized["customer_phone"])
+        if len(digits) == 10:
+            normalized["customer_phone"] = f"{digits[0:3]}-{digits[3:6]}-{digits[6:10]}"
+        elif digits:
+            normalized["customer_phone"] = digits
+    return normalized
+
+
+def _phone_digits(value: str) -> str:
+    return "".join(ch for ch in str(value) if ch.isdigit())
+
+
+def _looks_like_email(value: str) -> bool:
+    return bool(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value.strip()))
+
+
+def _safe_int(value: str | None) -> int:
+    try:
+        return int(value or "0")
+    except Exception:
+        return 0

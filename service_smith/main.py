@@ -14,7 +14,7 @@ from service_smith.formats import (
     load_field_map_override,
     merge_field_maps,
 )
-from service_smith.importer import load_rows, preview_rows, validate_rows
+from service_smith.importer import load_rows, preview_rows, select_rows, validate_rows
 from service_smith.utils.config import load_settings
 from service_smith.utils.logging import configure_logging, get_logger
 from service_smith.utils.reporting import summarize_rows, write_report
@@ -31,6 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--format", dest="spreadsheet_format", default="default", choices=sorted(ADAPTERS), help="Named spreadsheet adapter.")
     parser.add_argument("--field-map", type=Path, default=None, help="Optional JSON override mapping canonical names to source headers.")
     parser.add_argument("--duplicate-mode", choices=["skip", "error", "allow"], default="skip", help="How to handle rows whose external_id already exists in BlueFolder.")
+    parser.add_argument("--row-start", type=int, default=None, help="First source spreadsheet row number to include.")
+    parser.add_argument("--row-end", type=int, default=None, help="Last source spreadsheet row number to include.")
+    parser.add_argument("--limit", type=int, default=None, help="Maximum number of rows to process after filtering.")
     parser.add_argument("--list-formats", action="store_true", help="List supported spreadsheet adapters and exit.")
     parser.add_argument("--print-headers", action="store_true", help="Print the expected spreadsheet headers for the selected adapter and exit.")
     return parser
@@ -65,6 +68,7 @@ def main(argv: list[str] | None = None) -> int:
         logger.info("Applied field-map override from %s", args.field_map)
 
     rows = load_rows(args.spreadsheet, field_map=field_map)
+    rows = select_rows(rows, row_start=args.row_start, row_end=args.row_end, limit=args.limit)
     logger.info("Loaded %d row(s) from %s using adapter '%s'", len(rows), args.spreadsheet, adapter.name)
     issues = validate_rows(rows)
     for issue in issues:
