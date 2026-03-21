@@ -19,7 +19,7 @@ from service_smith.importer import load_rows, preview_rows, select_rows, validat
 from service_smith.profiles import resolve_profile
 from service_smith.utils.config import load_settings
 from service_smith.utils.logging import configure_logging, get_logger
-from service_smith.utils.reporting import summarize_rows, write_report
+from service_smith.utils.reporting import summarize_rows, write_report, write_summary_report
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -140,8 +140,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.validate_only:
         json_path, csv_path = write_report(report_dir, "validation", issues)
         summary = summarize_rows(issues, status_field="message", issue_level_field="level")
+        md_path = write_summary_report(
+            report_dir,
+            "validation_summary",
+            issues,
+            title="ServiceSmith Validation Summary",
+            status_field="message",
+            issue_level_field="level",
+        )
         logger.info("Validation summary: %s", summary)
-        logger.info("Validation report written to %s and %s", json_path, csv_path)
+        logger.info("Validation report written to %s, %s, and %s", json_path, csv_path, md_path)
         return 2 if any(issue["level"] == "error" for issue in issues) else 0
 
     if any(issue["level"] == "error" for issue in issues):
@@ -160,8 +168,17 @@ def main(argv: list[str] | None = None) -> int:
             logger.info("Preview row %d: %s", idx, row)
         stem = "payload_preview" if args.payload_preview else "dry_run"
         json_path, csv_path = write_report(report_dir, stem, plans)
-        logger.info("Dry-run summary: %s", summarize_rows(plans, status_field="service_request_action", issue_level_field="notes"))
-        logger.info("Dry-run report written to %s and %s", json_path, csv_path)
+        summary = summarize_rows(plans, status_field="service_request_action", issue_level_field="notes")
+        md_path = write_summary_report(
+            report_dir,
+            f"{stem}_summary",
+            plans,
+            title="ServiceSmith Dry Run Summary",
+            status_field="service_request_action",
+            issue_level_field="notes",
+        )
+        logger.info("Dry-run summary: %s", summary)
+        logger.info("Dry-run report written to %s, %s, and %s", json_path, csv_path, md_path)
         return 0
 
     imported = 0
@@ -184,6 +201,13 @@ def main(argv: list[str] | None = None) -> int:
 
     logger.info("Finished importing %d row(s).", imported)
     json_path, csv_path = write_report(report_dir, "import_results", results)
-    logger.info("Import summary: %s", summarize_rows(results))
-    logger.info("Import report written to %s and %s", json_path, csv_path)
+    summary = summarize_rows(results)
+    md_path = write_summary_report(
+        report_dir,
+        "import_results_summary",
+        results,
+        title="ServiceSmith Import Summary",
+    )
+    logger.info("Import summary: %s", summary)
+    logger.info("Import report written to %s, %s, and %s", json_path, csv_path, md_path)
     return 0

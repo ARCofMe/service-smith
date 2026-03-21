@@ -28,6 +28,37 @@ def write_report(report_dir: str | Path, stem: str, rows: Iterable[Any]) -> tupl
     return json_path, csv_path
 
 
+def write_summary_report(
+    report_dir: str | Path,
+    stem: str,
+    rows: Iterable[Any],
+    *,
+    title: str,
+    status_field: str = "status",
+    issue_level_field: str = "level",
+) -> Path:
+    target_dir = Path(report_dir)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    summary_path = target_dir / f"{stem}_{timestamp}.md"
+
+    normalized = [_normalize(item) for item in rows]
+    summary = summarize_rows(normalized, status_field=status_field, issue_level_field=issue_level_field)
+
+    lines = [f"# {title}", "", "## Summary", ""]
+    for key in sorted(summary):
+        lines.append(f"- {key}: {summary[key]}")
+
+    if normalized:
+        lines.extend(["", "## Sample Rows", ""])
+        for row in normalized[:10]:
+            row_bits = [f"{key}={value}" for key, value in sorted(row.items()) if value not in ("", None)]
+            lines.append(f"- {'; '.join(row_bits)}")
+
+    summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return summary_path
+
+
 def summarize_rows(rows: Iterable[Any], *, status_field: str = "status", issue_level_field: str = "level") -> dict[str, int]:
     summary: dict[str, int] = {"total": 0}
     for item in rows:
