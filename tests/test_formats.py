@@ -8,6 +8,7 @@ from service_smith.formats import (
     load_field_map_override,
     merge_field_maps,
 )
+from service_smith.profiles import load_profiles
 
 
 def test_get_adapter_returns_named_adapter():
@@ -63,3 +64,27 @@ def test_merge_field_maps_overrides_selected_headers():
     merged = merge_field_maps(DEFAULT_ADAPTER.field_map, {"customer_name": "Client"})
     assert merged["customer_name"] == "Client"
     assert merged["subject"] == DEFAULT_ADAPTER.field_map["subject"]
+
+
+def test_load_profiles_rejects_invalid_duplicate_mode(tmp_path):
+    path = tmp_path / "profiles.json"
+    path.write_text(json.dumps({"bad_profile": {"duplicate_mode": "warn"}}), encoding="utf-8")
+
+    try:
+        load_profiles(path)
+    except ValueError as exc:
+        assert "duplicate_mode" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError for invalid duplicate_mode")
+
+
+def test_load_profiles_rejects_unknown_adapter(tmp_path):
+    path = tmp_path / "profiles.json"
+    path.write_text(json.dumps({"bad_profile": {"spreadsheet_format": "vendor_z"}}), encoding="utf-8")
+
+    try:
+        load_profiles(path)
+    except ValueError as exc:
+        assert "spreadsheet_format" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError for invalid spreadsheet_format")

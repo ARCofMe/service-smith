@@ -70,7 +70,9 @@ Use these as starting points for vendors or internal requesters instead of askin
 ## Examples And Docs
 
 - example field-map override: [`examples/custom_map.json`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/examples/custom_map.json)
+- field-map schema: [`examples/field_map.schema.json`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/examples/field_map.schema.json)
 - example import profiles: [`examples/import_profiles.json`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/examples/import_profiles.json)
+- import profile schema: [`examples/import_profiles.schema.json`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/examples/import_profiles.schema.json)
 - operator workflows: [`docs/workflows.md`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/docs/workflows.md)
 - BlueFolder field reference: [`docs/bluefolder-fields.md`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/docs/bluefolder-fields.md)
 - helper script: [`scripts/run_import_workflow.sh`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/scripts/run_import_workflow.sh)
@@ -88,6 +90,7 @@ For one-off vendor exports, you can provide a JSON file that maps canonical fiel
 ```
 
 This override is layered on top of the selected adapter instead of replacing it wholesale.
+Use [`examples/field_map.schema.json`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/examples/field_map.schema.json) as the accepted shape reference.
 
 ## Dry Run Modes
 
@@ -112,6 +115,7 @@ Profiles let you save repeatable combinations such as adapter, duplicate mode, a
 ```
 
 CLI values override the profile when both are present.
+Use [`examples/import_profiles.schema.json`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/examples/import_profiles.schema.json) as the accepted shape reference.
 
 ## Packaging
 

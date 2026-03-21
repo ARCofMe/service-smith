@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ServiceSmith Import Profiles",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "dry_run": {"type": "boolean"},
+      "validate_only": {"type": "boolean"},
+      "payload_preview": {"type": "boolean"},
+      "report_dir": {"type": "string", "minLength": 1},
+      "fail_fast": {"type": "boolean"},
+      "spreadsheet_format": {
+        "type": "string",
+        "enum": ["default", "vendor_a", "vendor_b"]
+      },
+      "field_map": {"type": "string", "minLength": 1},
+      "duplicate_mode": {
+        "type": "string",
+        "enum": ["skip", "error", "allow"]
+      },
+      "row_start": {"type": "integer", "minimum": 1},
+      "row_end": {"type": "integer", "minimum": 1},
+      "limit": {"type": "integer", "minimum": 1}
+    }
+  }
+}
