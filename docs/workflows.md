@@ -51,6 +51,25 @@ Or via the helper script:
 scripts/run_import_workflow.sh payload-preview vendor_export.xlsx vendor_a examples/custom_map.json
 ```
 
+## Saved Profile
+
+Use a saved profile when the same import settings come up repeatedly.
+
+```bash
+servicesmith vendor_export.xlsx \
+  --profile vendor_a_review \
+  --profile-file examples/import_profiles.json
+```
+
+Use CLI flags on top when you need a one-off override:
+
+```bash
+servicesmith vendor_export.xlsx \
+  --profile vendor_a_review \
+  --profile-file examples/import_profiles.json \
+  --duplicate-mode allow
+```
+
 ## Real Import
 
 Only run a real import after validation passes and the dry-run report looks correct.

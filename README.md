@@ -32,6 +32,12 @@ Use a named adapter:
 servicesmith vendor_export.xlsx --format vendor_a --dry-run
 ```
 
+Use a named import profile for repeatable operator workflows:
+
+```bash
+servicesmith vendor_export.xlsx --profile vendor_a_review --profile-file examples/import_profiles.json
+```
+
 Write exact BlueFolder payload previews during a dry run:
 
 ```bash
@@ -63,6 +69,7 @@ Use these as starting points for vendors or internal requesters instead of askin
 ## Examples And Docs
 
 - example field-map override: [`examples/custom_map.json`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/examples/custom_map.json)
+- example import profiles: [`examples/import_profiles.json`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/examples/import_profiles.json)
 - operator workflows: [`docs/workflows.md`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/docs/workflows.md)
 - BlueFolder field reference: [`docs/bluefolder-fields.md`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/docs/bluefolder-fields.md)
 - helper script: [`scripts/run_import_workflow.sh`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/scripts/run_import_workflow.sh)
@@ -85,6 +92,23 @@ This override is layered on top of the selected adapter instead of replacing it 
 
 - `--dry-run`: writes action-oriented plans such as create/match/skip decisions
 - `--dry-run --payload-preview`: writes the exact customer, location, contact, and service request payloads that ServiceSmith would submit to BlueFolder
+
+## Import Profiles
+
+Profiles let you save repeatable combinations such as adapter, duplicate mode, and dry-run settings in a JSON file.
+
+```json
+{
+  "vendor_a_review": {
+    "spreadsheet_format": "vendor_a",
+    "duplicate_mode": "error",
+    "dry_run": true,
+    "payload_preview": true
+  }
+}
+```
+
+CLI values override the profile when both are present.
 
 ## Packaging
 

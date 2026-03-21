@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import sys
 
 from service_smith.bluefolder_client import ServiceSmithBlueFolderClient
 from service_smith.formats import (
@@ -15,6 +16,7 @@ from service_smith.formats import (
     merge_field_maps,
 )
 from service_smith.importer import load_rows, preview_rows, select_rows, validate_rows
+from service_smith.profiles import resolve_profile
 from service_smith.utils.config import load_settings
 from service_smith.utils.logging import configure_logging, get_logger
 from service_smith.utils.reporting import summarize_rows, write_report
@@ -23,14 +25,16 @@ from service_smith.utils.reporting import summarize_rows, write_report
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Import service requests from a spreadsheet into BlueFolder.")
     parser.add_argument("spreadsheet", type=Path, nargs="?", help="Path to the source spreadsheet.")
-    parser.add_argument("--dry-run", action="store_true", help="Parse and preview rows without creating anything.")
-    parser.add_argument("--validate-only", action="store_true", help="Validate rows and write a validation report without planning or importing.")
-    parser.add_argument("--payload-preview", action="store_true", help="In dry-run mode, write the exact BlueFolder payload previews instead of action summaries.")
+    parser.add_argument("--dry-run", action="store_true", default=None, help="Parse and preview rows without creating anything.")
+    parser.add_argument("--validate-only", action="store_true", default=None, help="Validate rows and write a validation report without planning or importing.")
+    parser.add_argument("--payload-preview", action="store_true", default=None, help="In dry-run mode, write the exact BlueFolder payload previews instead of action summaries.")
     parser.add_argument("--report-dir", type=Path, default=None, help="Directory for JSON/CSV import reports.")
-    parser.add_argument("--fail-fast", action="store_true", help="Stop on the first import failure.")
-    parser.add_argument("--format", dest="spreadsheet_format", default="default", choices=sorted(ADAPTERS), help="Named spreadsheet adapter.")
+    parser.add_argument("--fail-fast", action="store_true", default=None, help="Stop on the first import failure.")
+    parser.add_argument("--format", dest="spreadsheet_format", default=None, choices=sorted(ADAPTERS), help="Named spreadsheet adapter.")
     parser.add_argument("--field-map", type=Path, default=None, help="Optional JSON override mapping canonical names to source headers.")
-    parser.add_argument("--duplicate-mode", choices=["skip", "error", "allow"], default="skip", help="How to handle rows whose external_id already exists in BlueFolder.")
+    parser.add_argument("--profile", default=None, help="Named import profile from a JSON profile file.")
+    parser.add_argument("--profile-file", type=Path, default=None, help="Path to a JSON file containing named import profiles.")
+    parser.add_argument("--duplicate-mode", choices=["skip", "error", "allow"], default=None, help="How to handle rows whose external_id already exists in BlueFolder.")
     parser.add_argument("--row-start", type=int, default=None, help="First source spreadsheet row number to include.")
     parser.add_argument("--row-end", type=int, default=None, help="Last source spreadsheet row number to include.")
     parser.add_argument("--limit", type=int, default=None, help="Maximum number of rows to process after filtering.")
@@ -42,6 +46,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    raw_argv = argv if argv is not None else sys.argv[1:]
 
     settings = load_settings()
     configure_logging(settings)
@@ -51,6 +56,62 @@ def main(argv: list[str] | None = None) -> int:
         for adapter in list_adapters():
             logger.info("%s: %s", adapter.name, adapter.description)
         return 0
+
+    profile = {}
+    profile_file = args.profile_file or (Path(settings.service_smith_profile_file) if settings.service_smith_profile_file else None)
+    if args.profile:
+        if profile_file is None:
+            parser.error("--profile requires --profile-file or SERVICE_SMITH_PROFILE_FILE")
+        profile = resolve_profile(args.profile, profile_file)
+        logger.info("Loaded profile '%s' from %s", args.profile, profile_file)
+
+    defaults = {
+        "dry_run": False,
+        "validate_only": False,
+        "payload_preview": False,
+        "fail_fast": False,
+        "spreadsheet_format": "default",
+        "duplicate_mode": "skip",
+        "row_start": None,
+        "row_end": None,
+        "limit": None,
+        "report_dir": None,
+        "field_map": None,
+    }
+    option_flags = {
+        "dry_run": "--dry-run",
+        "validate_only": "--validate-only",
+        "payload_preview": "--payload-preview",
+        "fail_fast": "--fail-fast",
+        "spreadsheet_format": "--format",
+        "field_map": "--field-map",
+        "duplicate_mode": "--duplicate-mode",
+        "row_start": "--row-start",
+        "row_end": "--row-end",
+        "limit": "--limit",
+        "report_dir": "--report-dir",
+    }
+    effective = dict(defaults)
+    for key, value in profile.items():
+        if key in {"report_dir", "field_map"} and value is not None:
+            effective[key] = Path(value)
+        else:
+            effective[key] = value
+    for key, flag in option_flags.items():
+        if flag in raw_argv and getattr(args, key) is not None:
+            effective[key] = getattr(args, key)
+
+    args.dry_run = effective["dry_run"]
+    args.validate_only = effective["validate_only"]
+    args.payload_preview = effective["payload_preview"]
+    args.fail_fast = effective["fail_fast"]
+    args.spreadsheet_format = effective["spreadsheet_format"]
+    args.field_map = effective["field_map"]
+    args.duplicate_mode = effective["duplicate_mode"]
+    args.row_start = effective["row_start"]
+    args.row_end = effective["row_end"]
+    args.limit = effective["limit"]
+    args.report_dir = effective["report_dir"]
 
     adapter = get_adapter(args.spreadsheet_format)
 

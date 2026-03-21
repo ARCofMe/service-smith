@@ -1,0 +1,14 @@
+{
+  "vendor_a_review": {
+    "spreadsheet_format": "vendor_a",
+    "duplicate_mode": "error",
+    "dry_run": true,
+    "payload_preview": true,
+    "report_dir": "reports/vendor_a_review"
+  },
+  "default_validate": {
+    "spreadsheet_format": "default",
+    "validate_only": true,
+    "report_dir": "reports/validation"
+  }
+}
