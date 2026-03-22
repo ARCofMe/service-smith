@@ -26,6 +26,12 @@ List supported spreadsheet adapters:
 servicesmith --list-formats placeholder.csv
 ```
 
+Inspect a real file and rank the closest built-in adapters before importing:
+
+```bash
+servicesmith vendor_export.xlsx --detect-format
+```
+
 Use a named adapter:
 
 ```bash
@@ -91,6 +97,12 @@ For one-off vendor exports, you can provide a JSON file that maps canonical fiel
 
 This override is layered on top of the selected adapter instead of replacing it wholesale.
 Use [`examples/field_map.schema.json`](/home/ner0tic/Documents/Projects/ARCoM/service-smith/examples/field_map.schema.json) as the accepted shape reference.
+
+If you are still waiting on a final vendor format, use `--detect-format` first. It will show:
+
+- which built-in adapter is the closest match
+- which expected headers are missing
+- which source headers are extra and currently unused
 
 ## Dry Run Modes
 

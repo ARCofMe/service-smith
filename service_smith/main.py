@@ -9,13 +9,15 @@ import sys
 from service_smith.bluefolder_client import ServiceSmithBlueFolderClient
 from service_smith.formats import (
     ADAPTERS,
+    analyze_headers,
     adapter_headers,
+    detect_adapter_matches,
     get_adapter,
     list_adapters,
     load_field_map_override,
     merge_field_maps,
 )
-from service_smith.importer import load_rows, preview_rows, select_rows, validate_rows
+from service_smith.importer import load_rows, preview_rows, read_headers, select_rows, validate_rows
 from service_smith.profiles import resolve_profile
 from service_smith.utils.config import load_settings
 from service_smith.utils.logging import configure_logging, get_logger
@@ -40,6 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--limit", type=int, default=None, help="Maximum number of rows to process after filtering.")
     parser.add_argument("--list-formats", action="store_true", help="List supported spreadsheet adapters and exit.")
     parser.add_argument("--print-headers", action="store_true", help="Print the expected spreadsheet headers for the selected adapter and exit.")
+    parser.add_argument("--detect-format", action="store_true", help="Inspect spreadsheet headers, rank adapter matches, and exit.")
     return parser
 
 
@@ -127,6 +130,39 @@ def main(argv: list[str] | None = None) -> int:
     if args.field_map:
         field_map = merge_field_maps(field_map, load_field_map_override(args.field_map))
         logger.info("Applied field-map override from %s", args.field_map)
+
+    headers = read_headers(args.spreadsheet)
+    if args.detect_format:
+        matches = detect_adapter_matches(headers)
+        logger.info("Detected %d source header(s) in %s", len(headers), args.spreadsheet)
+        for match in matches:
+            logger.info(
+                "%s: score=%.2f matched=%s missing=%s unexpected=%s",
+                match["name"],
+                match["score"],
+                match["matched_count"],
+                match["missing_count"],
+                len(match["unexpected_headers"]),
+            )
+            if match["missing_headers"]:
+                logger.info("  missing: %s", ", ".join(match["missing_headers"][:8]))
+            if match["unexpected_headers"]:
+                logger.info("  unexpected: %s", ", ".join(match["unexpected_headers"][:8]))
+        return 0
+
+    header_analysis = analyze_headers(headers, field_map)
+    if header_analysis["missing_headers"]:
+        logger.warning(
+            "Selected adapter '%s' is missing %d expected header(s): %s",
+            adapter.name,
+            header_analysis["missing_count"],
+            ", ".join(header_analysis["missing_headers"][:8]),
+        )
+    if header_analysis["unexpected_headers"]:
+        logger.info(
+            "Source file has %d header(s) not used by the selected mapping.",
+            len(header_analysis["unexpected_headers"]),
+        )
 
     rows = load_rows(args.spreadsheet, field_map=field_map)
     rows = select_rows(rows, row_start=args.row_start, row_end=args.row_end, limit=args.limit)

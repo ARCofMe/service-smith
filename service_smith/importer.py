@@ -10,18 +10,17 @@ from typing import Iterable
 from service_smith.formats import DEFAULT_ADAPTER
 
 
-def load_rows(spreadsheet_path: str | Path, field_map: dict[str, str] | None = None) -> list[dict[str, str]]:
-    """Load rows from a CSV or spreadsheet-like export into canonical field names."""
+def read_headers(spreadsheet_path: str | Path) -> list[str]:
+    """Read the source headers without mapping rows."""
     path = Path(spreadsheet_path)
-    mapped_fields = field_map or DEFAULT_ADAPTER.field_map
 
     if path.suffix.lower() == ".csv":
         with path.open("r", newline="", encoding="utf-8-sig") as handle:
-            reader = csv.DictReader(handle)
-            return [
-                _map_row(row, mapped_fields, row_number=index)
-                for index, row in enumerate(reader, start=2)
-            ]
+            reader = csv.reader(handle)
+            header_row = next(reader, None)
+            if not header_row:
+                return []
+            return [str(cell).strip() if cell is not None else "" for cell in header_row]
 
     if path.suffix.lower() in {".xlsx", ".xlsm"}:
         try:
@@ -34,7 +33,34 @@ def load_rows(spreadsheet_path: str | Path, field_map: dict[str, str] | None = N
         header_row = next(sheet.iter_rows(min_row=1, max_row=1, values_only=True), None)
         if not header_row:
             return []
-        headers = [str(cell).strip() if cell is not None else "" for cell in header_row]
+        return [str(cell).strip() if cell is not None else "" for cell in header_row]
+
+    raise ValueError(f"Unsupported spreadsheet format: {path.suffix}")
+
+
+def load_rows(spreadsheet_path: str | Path, field_map: dict[str, str] | None = None) -> list[dict[str, str]]:
+    """Load rows from a CSV or spreadsheet-like export into canonical field names."""
+    path = Path(spreadsheet_path)
+    mapped_fields = field_map or DEFAULT_ADAPTER.field_map
+
+    if path.suffix.lower() == ".csv":
+        headers = read_headers(path)
+        with path.open("r", newline="", encoding="utf-8-sig") as handle:
+            reader = csv.DictReader(handle, fieldnames=headers)
+            next(reader, None)
+            return [
+                _map_row(row, mapped_fields, row_number=index)
+                for index, row in enumerate(reader, start=2)
+            ]
+
+    if path.suffix.lower() in {".xlsx", ".xlsm"}:
+        headers = read_headers(path)
+        if not headers:
+            return []
+        from openpyxl import load_workbook
+
+        workbook = load_workbook(path, read_only=True, data_only=True)
+        sheet = workbook.active
         rows: list[dict[str, str]] = []
         for index, values in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
             raw = {headers[idx]: _stringify(value) for idx, value in enumerate(values) if idx < len(headers)}

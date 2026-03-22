@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from service_smith.formats import get_adapter
-from service_smith.importer import load_rows, select_rows, validate_rows
+from service_smith.importer import load_rows, read_headers, select_rows, validate_rows
 
 
 def test_load_rows_uses_adapter_mapping(tmp_path: Path):
@@ -20,6 +20,19 @@ def test_load_rows_uses_adapter_mapping(tmp_path: Path):
     assert rows[0]["subject"] == "No cool"
     assert rows[0]["address"] == "123 Main St"
     assert rows[0]["source_row_number"] == "2"
+
+
+def test_read_headers_returns_csv_header_row(tmp_path: Path):
+    csv_path = tmp_path / "default.csv"
+    csv_path.write_text(
+        "Customer Name,Email,Phone\n"
+        "Acme,ops@example.com,207-555-1212\n",
+        encoding="utf-8",
+    )
+
+    headers = read_headers(csv_path)
+
+    assert headers == ["Customer Name", "Email", "Phone"]
 
 
 def test_validate_rows_flags_missing_required_fields():

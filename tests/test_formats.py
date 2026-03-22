@@ -2,7 +2,9 @@ import json
 
 from service_smith.formats import (
     DEFAULT_ADAPTER,
+    analyze_headers,
     adapter_headers,
+    detect_adapter_matches,
     get_adapter,
     list_adapters,
     load_field_map_override,
@@ -64,6 +66,25 @@ def test_merge_field_maps_overrides_selected_headers():
     merged = merge_field_maps(DEFAULT_ADAPTER.field_map, {"customer_name": "Client"})
     assert merged["customer_name"] == "Client"
     assert merged["subject"] == DEFAULT_ADAPTER.field_map["subject"]
+
+
+def test_analyze_headers_reports_missing_and_unexpected():
+    analysis = analyze_headers(
+        ["Customer Name", "Subject", "Address", "Mystery Column"],
+        DEFAULT_ADAPTER.field_map,
+    )
+
+    assert analysis["matched_count"] == 3
+    assert "Email" in analysis["missing_headers"]
+    assert "Mystery Column" in analysis["unexpected_headers"]
+
+
+def test_detect_adapter_matches_ranks_best_candidate_first():
+    matches = detect_adapter_matches(
+        ["Account Name", "Contact Email", "Problem Summary", "Street Address", "City", "State", "Postal Code"]
+    )
+
+    assert matches[0]["name"] == "vendor_a"
 
 
 def test_load_profiles_rejects_invalid_duplicate_mode(tmp_path):

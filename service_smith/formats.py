@@ -116,6 +116,10 @@ ADAPTERS: dict[str, SpreadsheetAdapter] = {
 }
 
 
+def _normalize_header(value: str) -> str:
+    return " ".join(str(value or "").split()).strip().casefold()
+
+
 def get_adapter(name: str) -> SpreadsheetAdapter:
     try:
         return ADAPTERS[name]
@@ -131,6 +135,52 @@ def list_adapters() -> list[SpreadsheetAdapter]:
 def adapter_headers(name: str) -> list[str]:
     adapter = get_adapter(name)
     return list(adapter.field_map.values())
+
+
+def analyze_headers(headers: list[str], field_map: dict[str, str]) -> dict[str, object]:
+    normalized_headers = {_normalize_header(header): header for header in headers if str(header).strip()}
+    matched: list[str] = []
+    missing: list[str] = []
+    for expected in field_map.values():
+        if _normalize_header(expected) in normalized_headers:
+            matched.append(expected)
+        else:
+            missing.append(expected)
+
+    expected_norms = {_normalize_header(value) for value in field_map.values() if str(value).strip()}
+    unexpected = [
+        header for header in headers
+        if str(header).strip() and _normalize_header(header) not in expected_norms
+    ]
+    return {
+        "matched_headers": matched,
+        "missing_headers": missing,
+        "unexpected_headers": unexpected,
+        "matched_count": len(matched),
+        "missing_count": len(missing),
+        "score": (len(matched) / len(field_map)) if field_map else 0.0,
+    }
+
+
+def detect_adapter_matches(headers: list[str]) -> list[dict[str, object]]:
+    matches: list[dict[str, object]] = []
+    for adapter in list_adapters():
+        analysis = analyze_headers(headers, adapter.field_map)
+        matches.append(
+            {
+                "name": adapter.name,
+                "description": adapter.description,
+                **analysis,
+            }
+        )
+    matches.sort(
+        key=lambda item: (
+            -float(item["score"]),
+            int(item["missing_count"]),
+            str(item["name"]),
+        )
+    )
+    return matches
 
 
 def load_field_map_override(path: str | Path) -> dict[str, str]:

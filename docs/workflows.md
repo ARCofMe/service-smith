@@ -24,6 +24,18 @@ servicesmith templates/default_template.csv --format default --dry-run --payload
 
 Use a named adapter when a vendor export already matches one of the supported formats.
 
+If you are not sure which adapter is closest yet, inspect the source headers first:
+
+```bash
+servicesmith vendor_export.xlsx --detect-format
+```
+
+This prints:
+
+- the best matching built-in adapters
+- missing expected headers for each adapter
+- unexpected source headers that are not currently mapped
+
 ```bash
 servicesmith vendor_export.xlsx --format vendor_a --dry-run
 ```

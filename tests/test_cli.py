@@ -207,6 +207,29 @@ def test_cli_explicit_args_override_profile(tmp_path, monkeypatch):
     assert written["rows"][0]["duplicate_mode"] == "allow"
 
 
+def test_cli_detect_format_exits_before_import(tmp_path, monkeypatch):
+    csv_path = tmp_path / "vendor_a.csv"
+    csv_path.write_text(
+        "Account Name,Contact Email,Problem Summary,Street Address,City,State,Postal Code\n"
+        "Acme,ops@example.com,No cool,123 Main St,Portland,ME,04101\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(cli, "load_settings", lambda: _settings())
+    called = {"client": False}
+
+    def fail_if_called(settings):
+        called["client"] = True
+        raise AssertionError("client should not be created during --detect-format")
+
+    monkeypatch.setattr(cli, "ServiceSmithBlueFolderClient", fail_if_called)
+
+    exit_code = cli.main([str(csv_path), "--detect-format"])
+
+    assert exit_code == 0
+    assert called["client"] is False
+
+
 def _capture_report(target: dict, stem: str, rows, tmp_path: Path):
     target["stem"] = stem
     target["rows"] = list(rows)
